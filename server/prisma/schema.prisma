@@ -1,0 +1,281 @@
+// Galcosto - modelo de datos
+// Facturacion electronica ARCA (ex AFIP) para estudios contables.
+//
+// El estudio (Studio) es el tenant raiz: agrupa usuarios y las empresas
+// (Company) por las que factura. Cada empresa tiene sus propias credenciales
+// ARCA (certificado + clave privada) cifradas en reposo.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Studio {
+  id        String   @id @default(cuid())
+  name      String
+  cuit      String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  companies Company[]
+  customers Customer[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  studioId     String
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("ADMIN") // ADMIN | OPERADOR
+  active       Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studio   Studio    @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+  logs     AuditLog[]
+
+  @@index([studioId])
+}
+
+/// Empresa emisora: un contribuyente por el que el estudio factura.
+model Company {
+  id           String  @id @default(cuid())
+  studioId     String
+  razonSocial  String
+  cuit         String
+  nombreFantasia String?
+  /// Condicion frente al IVA del emisor: RI | MONOTRIBUTO | EXENTO
+  condicionIva String  @default("RI")
+  domicilio    String?
+  localidad    String?
+  provincia    String?
+  ingresosBrutos String?
+  inicioActividades DateTime?
+  logoDataUrl  String?
+
+  /// HOMO (homologacion / testing) | PROD (produccion)
+  environment  String  @default("HOMO")
+  /// Certificado X.509 en PEM, cifrado con AES-256-GCM.
+  certPemEnc   String?
+  /// Clave privada en PEM, cifrada con AES-256-GCM.
+  keyPemEnc    String?
+  certUploadedAt DateTime?
+  certSubject  String?
+  certExpiresAt DateTime?
+
+  defaultPtoVta Int    @default(1)
+  active       Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studio    Studio       @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  tickets   ArcaTicket[]
+  invoices  Invoice[]
+  products  Product[]
+  customers Customer[]
+
+  @@unique([studioId, cuit, environment])
+  @@index([studioId])
+}
+
+/// Cache del Ticket de Acceso (TA) devuelto por WSAA. Vale 12 horas.
+model ArcaTicket {
+  id           String   @id @default(cuid())
+  companyId    String
+  service      String   // wsfe | ws_sr_padron_a5
+  environment  String   // HOMO | PROD
+  token        String
+  sign         String
+  generationTime DateTime
+  expirationTime DateTime
+  createdAt    DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, service, environment])
+  @@index([expirationTime])
+}
+
+model Customer {
+  id           String  @id @default(cuid())
+  studioId     String
+  /// Si es null, el cliente es compartido por todas las empresas del estudio.
+  companyId    String?
+  razonSocial  String
+  docTipo      Int     @default(80) // 80=CUIT 86=CUIL 96=DNI 99=Consumidor Final
+  docNro       String
+  /// Id de condicion frente al IVA del receptor (RG 5616). Ver catalogo.
+  condicionIvaReceptorId Int @default(5)
+  email        String?
+  telefono     String?
+  domicilio    String?
+  localidad    String?
+  provincia    String?
+  notas        String?
+  active       Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studio   Studio    @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  company  Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+
+  @@index([studioId])
+  @@index([docNro])
+}
+
+/// Producto o servicio reutilizable para armar comprobantes rapido.
+model Product {
+  id          String  @id @default(cuid())
+  companyId   String
+  codigo      String?
+  descripcion String
+  unidad      String  @default("unidad")
+  precioUnitario Float
+  /// Id de alicuota de IVA de ARCA: 3=0% 4=10.5% 5=21% 6=27% 8=5% 9=2.5%
+  ivaId       Int     @default(5)
+  /// true = precioUnitario ya incluye IVA
+  precioConIva Boolean @default(false)
+  active      Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items   InvoiceItem[]
+
+  @@index([companyId])
+}
+
+/// Comprobante electronico (factura, nota de credito o de debito).
+model Invoice {
+  id          String  @id @default(cuid())
+  companyId   String
+  customerId  String?
+  createdById String?
+
+  ptoVta      Int
+  /// Tipo de comprobante ARCA: 1=FacA 6=FacB 11=FacC 3=NCA 8=NCB 13=NCC ...
+  cbteTipo    Int
+  cbteNro     Int?
+  /// 1=Productos 2=Servicios 3=Productos y Servicios
+  concepto    Int     @default(1)
+
+  docTipo     Int
+  docNro      String
+  receptorRazonSocial String?
+  receptorDomicilio   String?
+  condicionIvaReceptorId Int @default(5)
+
+  fechaCbte   DateTime
+  fchServDesde DateTime?
+  fchServHasta DateTime?
+  fchVtoPago   DateTime?
+
+  monId       String  @default("PES")
+  monCotiz    Float   @default(1)
+
+  impNeto     Float   @default(0)
+  impIVA      Float   @default(0)
+  impTotConc  Float   @default(0)
+  impOpEx     Float   @default(0)
+  impTrib     Float   @default(0)
+  impTotal    Float   @default(0)
+
+  /// BORRADOR | EMITIDA | RECHAZADA | ANULADA
+  estado      String  @default("BORRADOR")
+  cae         String?
+  caeVto      DateTime?
+  /// "A" aprobado | "R" rechazado, tal cual lo devuelve ARCA.
+  resultado   String?
+  /// Observaciones y errores devueltos por ARCA, en JSON.
+  arcaObs     String?
+  arcaErrors  String?
+  /// Payload del QR obligatorio en el comprobante.
+  qrPayload   String?
+  /// Comprobantes asociados (para notas de credito/debito), en JSON.
+  cbtesAsoc   String?
+  /// Request/response crudo con ARCA, para auditoria y soporte.
+  arcaRequest  String?
+  arcaResponse String?
+
+  observaciones String?
+  environment String  @default("HOMO")
+  emitidaAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdBy User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  items    InvoiceItem[]
+  tributos Tributo[]
+
+  @@unique([companyId, ptoVta, cbteTipo, cbteNro, environment])
+  @@index([companyId, estado])
+  @@index([fechaCbte])
+}
+
+model InvoiceItem {
+  id          String @id @default(cuid())
+  invoiceId   String
+  productId   String?
+  orden       Int    @default(0)
+
+  descripcion String
+  cantidad    Float  @default(1)
+  unidad      String @default("unidad")
+  precioUnitario Float
+  /// Porcentaje de bonificacion aplicado sobre el subtotal de la linea.
+  bonificacion Float @default(0)
+  ivaId       Int    @default(5)
+
+  /// Importes calculados y persistidos (netos de bonificacion).
+  subtotalNeto Float @default(0)
+  importeIva   Float @default(0)
+  subtotalConIva Float @default(0)
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+}
+
+/// Otros tributos del comprobante (percepciones, impuestos internos, etc).
+model Tributo {
+  id        String @id @default(cuid())
+  invoiceId String
+  tributoId Int    // 1=Nacionales 2=Provinciales 3=Municipales 4=Internos 99=Otros
+  descripcion String
+  baseImp   Float
+  alicuota  Float
+  importe   Float
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  studioId  String?
+  action    String
+  entity    String?
+  entityId  String?
+  detail    String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([studioId, createdAt])
+}
