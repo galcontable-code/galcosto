@@ -40,6 +40,21 @@ const PASOS = [
   { n: 3, titulo: 'Confirmar', ayuda: 'Revisar y emitir' },
 ] as const;
 
+/**
+ * Un comprobante puede fallar sin que ARCA se haya enterado: si no pasa
+ * nuestras validaciones, la llamada nunca sale. Atribuirselo a ARCA manda al
+ * usuario a buscar el problema donde no esta.
+ */
+function tituloDeError(e: unknown): string {
+  if (e instanceof ApiError) {
+    if (e.code === 'ARCA_REJECTED') return 'ARCA no autorizo el comprobante';
+    if (e.code === 'ARCA_UNAVAILABLE') return 'No pudimos conectarnos con ARCA';
+    if (e.code === 'ARCA_CONFIG_ERROR') return 'Faltan credenciales de ARCA';
+    if (e.code === 'VALIDATION_ERROR') return 'El comprobante tiene datos para corregir';
+  }
+  return 'No se pudo emitir el comprobante';
+}
+
 /** Etapas del pedido de CAE, para que la espera no sea una pantalla muda. */
 const ETAPAS_EMISION = [
   'Validando el comprobante...',
@@ -178,9 +193,9 @@ export function FacturarPage(): JSX.Element {
     } catch (e) {
       setErrorEmision(e instanceof Error ? e : new Error(String(e)));
       // Volvemos al paso 2 conservando todo lo cargado, que es donde se
-      // corrige casi cualquier rechazo de ARCA.
+      // corrige casi cualquier rechazo.
       set({ paso: 2 });
-      toast.error('ARCA no autorizo el comprobante', mensajeDeError(e));
+      toast.error(tituloDeError(e), mensajeDeError(e));
     } finally {
       window.clearInterval(tick);
       setEmitiendo(false);
@@ -241,7 +256,7 @@ export function FacturarPage(): JSX.Element {
       <Pasos actual={state.paso} onIr={(n) => n < state.paso && set({ paso: n })} />
 
       {errorEmision ? (
-        <Alert tono="rojo" titulo="ARCA no autorizo el comprobante" className="mb-4">
+        <Alert tono="rojo" titulo={tituloDeError(errorEmision)} className="mb-4">
           <p>{mensajeDeError(errorEmision)}</p>
           {detalles && detalles.length > 0 ? (
             <ul className="mt-2 list-disc space-y-1 pl-5">

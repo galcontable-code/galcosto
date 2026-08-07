@@ -85,7 +85,7 @@ export function ResultadoEmision({
               ) : null}
             </p>
           </div>
-          <Qr url={invoice.qrUrl} tamano={128} />
+          <Qr invoiceId={invoice.id} url={invoice.qrUrl} tamano={128} />
         </div>
       </Card>
 

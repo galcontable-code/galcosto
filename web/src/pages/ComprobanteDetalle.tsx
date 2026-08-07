@@ -324,7 +324,7 @@ export function ComprobanteDetallePage(): JSX.Element {
               </p>
               {inv.qrUrl || inv.qrPayload ? (
                 <div className="mt-4 flex justify-center">
-                  <Qr url={inv.qrUrl ?? inv.qrPayload} tamano={150} />
+                  <Qr invoiceId={inv.id} url={inv.qrUrl ?? inv.qrPayload} tamano={150} />
                 </div>
               ) : null}
               {inv.environment === 'HOMO' ? (

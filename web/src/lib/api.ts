@@ -311,6 +311,7 @@ export const api = {
   retryInvoice: (id: string) => request<Invoice>(`/invoices/${id}/retry`, { method: 'POST' }),
   arcaLog: (id: string) => request<ArcaLog>(`/invoices/${id}/arca-log`),
   invoicePdf: (id: string) => blob(`/invoices/${id}/pdf`),
+  invoiceQr: (id: string) => blob(`/invoices/${id}/qr.png`),
 
   /* catálogos, dashboard y salud */
   catalogs: () => request<Catalogs>('/catalogs'),

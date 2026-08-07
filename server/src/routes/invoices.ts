@@ -24,6 +24,7 @@ import {
   retryInvoice,
 } from '../services/invoice-service.js';
 import { generateInvoicePdf } from '../services/pdf-service.js';
+import { renderQrPng } from '../arca/index.js';
 import { formatearNumeroComprobante } from '../lib/format.js';
 
 export async function rutasInvoices(app: FastifyInstance): Promise<void> {
@@ -56,6 +57,36 @@ export async function rutasInvoices(app: FastifyInstance): Promise<void> {
     const { studioId } = sesionDe(request);
     const { id } = parsear(idParamsSchema, request.params);
     return getInvoice(id, studioId);
+  });
+
+  /**
+   * GET /api/invoices/:id/qr.png
+   *
+   * El QR se renderiza aca y no en el navegador: `qrPayload` es la URL que el
+   * codigo tiene que *codificar* (el verificador de ARCA), no una imagen. Si
+   * el frontend la pusiera en un <img> estaria pidiendole un PNG a
+   * afip.gob.ar, que ademas expondria los datos del comprobante a un tercero.
+   */
+  app.get('/:id/qr.png', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { studioId } = sesionDe(request);
+    const { id } = parsear(idParamsSchema, request.params);
+
+    const comprobante = await getInvoice(id, studioId);
+    if (!comprobante.qrUrl) {
+      return reply.status(404).send({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'El comprobante todavia no tiene QR: se genera al obtener el CAE',
+        },
+      });
+    }
+
+    const png = await renderQrPng(comprobante.qrUrl);
+    return reply
+      .header('Content-Type', 'image/png')
+      .header('Cache-Control', 'private, max-age=86400')
+      .header('Content-Length', String(png.length))
+      .send(png);
   });
 
   /** GET /api/invoices/:id/pdf */

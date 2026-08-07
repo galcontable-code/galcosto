@@ -1,26 +1,59 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { IconQr } from './Icons';
 import { cx } from './ui';
+import { api } from '../lib/api';
 
 /**
  * QR obligatorio del comprobante.
  *
- * El backend devuelve la URL del QR (`qrUrl`). Si esa URL se puede pintar como
- * imagen la mostramos; si no, dejamos el acceso al verificador de ARCA para
- * que el dato nunca se pierda.
+ * `url` es lo que el codigo QR tiene que *codificar*: el verificador de ARCA
+ * (`afip.gob.ar/fe/qr/?p=...`). No es una imagen — pedirla como tal fallaria
+ * y encima le mostraria los datos del comprobante a un tercero. El PNG lo
+ * renderiza nuestra API a partir de ese mismo dato, y se descarga con el
+ * token de sesion.
+ *
+ * Si el comprobante todavia no tiene QR, o la descarga falla, queda el enlace
+ * al verificador para que el dato nunca se pierda.
  */
 export function Qr({
+  invoiceId,
   url,
   tamano = 132,
   className,
 }: {
+  /** Comprobante del que traer el PNG. Sin esto solo se muestra el enlace. */
+  invoiceId?: string | null;
+  /** URL del verificador de ARCA, para el enlace de respaldo. */
   url?: string | null;
   tamano?: number;
   className?: string;
 }): JSX.Element {
-  const [falloImagen, setFalloImagen] = useState(false);
+  const [src, setSrc] = useState<string | null>(null);
+  const [fallo, setFallo] = useState(false);
 
-  if (!url) {
+  useEffect(() => {
+    if (!invoiceId) return;
+    let anulado = false;
+    let objectUrl: string | null = null;
+
+    api
+      .invoiceQr(invoiceId)
+      .then((b) => {
+        if (anulado) return;
+        objectUrl = URL.createObjectURL(b);
+        setSrc(objectUrl);
+      })
+      .catch(() => {
+        if (!anulado) setFallo(true);
+      });
+
+    return () => {
+      anulado = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [invoiceId]);
+
+  if (!url && !invoiceId) {
     return (
       <div
         className={cx(
@@ -35,9 +68,20 @@ export function Qr({
     );
   }
 
+  const mostrarImagen = src && !fallo;
+
   return (
     <figure className={cx('flex flex-col items-center gap-1.5', className)}>
-      {falloImagen ? (
+      {mostrarImagen ? (
+        <img
+          src={src}
+          alt="Codigo QR del comprobante, para verificarlo en ARCA"
+          width={tamano}
+          height={tamano}
+          className="rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700"
+          style={{ width: tamano, height: tamano }}
+        />
+      ) : url ? (
         <a
           href={url}
           target="_blank"
@@ -46,22 +90,17 @@ export function Qr({
           style={{ width: tamano, height: tamano }}
         >
           <IconQr className="h-8 w-8" />
-          Verificar en ARCA
+          {fallo ? 'Verificar en ARCA' : 'Generando QR...'}
         </a>
       ) : (
-        <img
-          src={url}
-          alt="Código QR del comprobante, para verificarlo en ARCA"
-          width={tamano}
-          height={tamano}
-          onError={() => setFalloImagen(true)}
-          className="rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700"
+        <div
+          className="flex items-center justify-center rounded-lg border border-dashed border-slate-300 dark:border-slate-700"
           style={{ width: tamano, height: tamano }}
-        />
+        >
+          <IconQr className="h-6 w-6 text-slate-400" />
+        </div>
       )}
-      <figcaption className="text-[10px] uppercase tracking-wide text-slate-400">
-        QR ARCA
-      </figcaption>
+      <figcaption className="text-[10px] uppercase tracking-wide text-slate-400">QR ARCA</figcaption>
     </figure>
   );
 }
