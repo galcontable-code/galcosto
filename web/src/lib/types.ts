@@ -397,4 +397,8 @@ export interface HealthPayload {
   version: string;
   demoMode: boolean;
   uptime: number;
+  /** Entorno del proceso: development | production. */
+  env?: string;
+  /** Estado de la base, tal como lo reporta /api/health. */
+  db?: string;
 }

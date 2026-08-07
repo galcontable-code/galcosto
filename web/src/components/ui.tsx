@@ -14,7 +14,7 @@ import type {
 } from 'react';
 import { IconAlerta, IconCheck, IconInfo } from './Icons';
 
-export function cx(...clases: Array<string | false | null | undefined>): string {
+export function cx(...clases: Array<string | number | false | null | undefined>): string {
   return clases.filter(Boolean).join(' ');
 }
 
@@ -110,7 +110,12 @@ interface FieldProps {
   error?: string | null;
   ok?: string | null;
   requerido?: boolean;
-  children: (id: string) => ReactNode;
+  /**
+   * Como render prop recibe el id y lo asocia al label con `htmlFor`. Como
+   * nodo suelto, el control se envuelve en el propio `<label>`, que asocia
+   * igual de bien sin obligar a cablear el id a mano.
+   */
+  children: ReactNode | ((id: string) => ReactNode);
   className?: string;
 }
 
@@ -125,15 +130,34 @@ export function Field({
   className,
 }: FieldProps): JSX.Element {
   const id = useId();
+  const esRenderProp = typeof children === 'function';
+  const textoLabel = label ? (
+    <>
+      {label}
+      {requerido ? <span className="ml-0.5 text-red-500">*</span> : null}
+    </>
+  ) : null;
+
   return (
     <div className={cx('min-w-0', className)}>
-      {label ? (
-        <label htmlFor={id} className="lbl">
-          {label}
-          {requerido ? <span className="ml-0.5 text-red-500">*</span> : null}
+      {esRenderProp ? (
+        <>
+          {textoLabel ? (
+            <label htmlFor={id} className="lbl">
+              {textoLabel}
+            </label>
+          ) : null}
+          {(children as (id: string) => ReactNode)(id)}
+        </>
+      ) : textoLabel ? (
+        // Asociacion implicita: el control va adentro del label.
+        <label className="block">
+          <span className="lbl">{textoLabel}</span>
+          {children as ReactNode}
         </label>
-      ) : null}
-      {children(id)}
+      ) : (
+        (children as ReactNode)
+      )}
       {error ? (
         <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400">
           <IconAlerta className="h-3.5 w-3.5 shrink-0" />

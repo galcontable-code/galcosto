@@ -251,7 +251,10 @@ export const api = {
   me: () => request<MePayload>('/auth/me'),
 
   /* empresas */
-  companies: () => request<Company[]>('/companies'),
+  // El backend responde paginado; lo normalizamos aca para que todos los
+  // consumidores reciban siempre un array plano.
+  companies: () =>
+    request<Company[] | Paginated<Company>>('/companies').then(comoLista),
   company: (id: string) => request<Company>(`/companies/${id}`),
   createCompany: (body: CompanyInput) =>
     request<Company>('/companies', { method: 'POST', body }),
