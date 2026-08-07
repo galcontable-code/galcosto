@@ -211,9 +211,12 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
 
     // Errores propios de Fastify (JSON mal formado, media type, etc).
-    const status = typeof error.statusCode === 'number' ? error.statusCode : 500;
+    // Fastify tipa el parametro como unknown, asi que lo estrechamos a la
+    // forma que nos interesa antes de leerlo.
+    const fastifyErr = err as { statusCode?: unknown; message?: unknown };
+    const status = typeof fastifyErr.statusCode === 'number' ? fastifyErr.statusCode : 500;
     if (status >= 400 && status < 500) {
-      request.log.info({ err: error }, 'Request rechazado');
+      request.log.info({ err }, 'Request rechazado');
       const code =
         status === 401
           ? 'UNAUTHORIZED'
@@ -224,7 +227,9 @@ export async function buildApp(): Promise<FastifyInstance> {
               : status === 409
                 ? 'CONFLICT'
                 : 'VALIDATION_ERROR';
-      return reply.status(status).send(cuerpoError(code, error.message));
+      const mensaje =
+        typeof fastifyErr.message === 'string' ? fastifyErr.message : 'Request invalido';
+      return reply.status(status).send(cuerpoError(code, mensaje));
     }
 
     request.log.error({ err: error }, 'Error no controlado');

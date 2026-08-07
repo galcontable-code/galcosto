@@ -987,7 +987,9 @@ export async function createCreditNote(
     companyId: original.companyId,
     ptoVta: original.ptoVta,
     cbteTipo: cbteTipoNC,
-    concepto: original.concepto,
+    // El concepto viene de la base como number; en el comprobante original ya
+    // fue validado contra el catalogo (1, 2 o 3).
+    concepto: original.concepto as 1 | 2 | 3,
     customerId: original.customerId,
     docTipo: original.docTipo,
     docNro: original.docNro,
