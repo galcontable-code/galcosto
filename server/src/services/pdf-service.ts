@@ -54,9 +54,16 @@ const CONDICION_EMISOR: Record<string, string> = {
   EXENTO: 'IVA Sujeto Exento',
 };
 
-/** Codigo interno que ARCA imprime debajo de la letra ("COD. 011"). */
-function codigoComprobante(cbteTipo: number): string {
-  return `COD. ${String(cbteTipo).padStart(3, '0')}`;
+/**
+ * Codigo de comprobante que va impreso debajo de la letra.
+ *
+ * Se escribe con dos digitos ("COD. 01" para Factura A, "COD. 06" para la B,
+ * "COD. 11" para la C). Los comprobantes MiPyME tienen codigos de tres
+ * digitos propios (201, 206, 211) y se imprimen tal cual: por eso el relleno
+ * es a un minimo de dos, no a tres fijos.
+ */
+export function codigoComprobante(cbteTipo: number): string {
+  return `COD. ${String(cbteTipo).padStart(2, '0')}`;
 }
 
 function titulaComprobante(cbteTipo: number): string {
