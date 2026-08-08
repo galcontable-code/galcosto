@@ -79,7 +79,7 @@ export function CompanySwitcher(): JSX.Element {
                     </span>
                     <span className="block truncate text-[11px] text-slate-500 tabular dark:text-slate-400">
                       {formatCuit(c.cuit)} · {c.environment === 'PROD' ? 'Producción' : 'Homologación'}
-                      {c.hasCredentials === false ? ' · sin certificado' : ''}
+                      {c.tieneCredenciales === false ? ' · sin certificado' : ''}
                     </span>
                   </span>
                   {activa ? <IconCheck className="h-4 w-4 shrink-0 text-brand-600" /> : null}

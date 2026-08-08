@@ -61,7 +61,10 @@ export interface Company {
   certSubject?: string | null;
   certExpiresAt?: string | null;
   /** Metadato que expone el backend: si tiene certificado + clave cargados. */
-  hasCredentials?: boolean;
+  tieneCredenciales?: boolean;
+  /** El certificado cargado ya paso su fecha de vencimiento. */
+  certVencido?: boolean;
+  cuitFormateado?: string;
   defaultPtoVta: number;
   active?: boolean;
   createdAt?: string;

@@ -37,6 +37,11 @@ Codigos: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401), `FORBIDDEN` (403),
 | GET | `/api/companies` | Lista las empresas del estudio |
 | POST | `/api/companies` | Crea. `{ razonSocial, cuit, condicionIva, domicilio?, ... , environment, defaultPtoVta }` |
 | GET | `/api/companies/:id` | Detalle (nunca devuelve cert ni key, solo metadatos) |
+
+> El detalle y el listado de empresas incluyen `tieneCredenciales` (bool),
+> `certSubject`, `certUploadedAt`, `certExpiresAt` y `certVencido` (bool).
+> El `certPemEnc` y el `keyPemEnc` **nunca** salen de la API.
+
 | PATCH | `/api/companies/:id` | Actualiza |
 | DELETE | `/api/companies/:id` | Baja logica |
 | POST | `/api/companies/:id/credentials` | Sube certificado + clave. `{ certPem, keyPem }` (texto PEM). Responde `{ certSubject, certExpiresAt }` |

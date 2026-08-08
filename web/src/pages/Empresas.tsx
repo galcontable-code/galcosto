@@ -119,7 +119,7 @@ export function EmpresasPage(): JSX.Element {
                     </Badge>
                   </Td>
                   <Td>
-                    {c.hasCredentials ? (
+                    {c.tieneCredenciales ? (
                       <Badge tono="verde" punto>Cargado</Badge>
                     ) : (
                       <Badge tono="gris" punto>Sin cargar</Badge>

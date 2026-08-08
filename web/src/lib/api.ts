@@ -251,8 +251,9 @@ export const api = {
   me: () => request<MePayload>('/auth/me'),
 
   /* empresas */
-  // El backend responde paginado; lo normalizamos aca para que todos los
-  // consumidores reciban siempre un array plano.
+  // Varios listados responden paginados ({items, total}) y otros como array
+  // plano. Se normalizan todos aca, en el unico lugar que toca la respuesta
+  // cruda, para que ningun consumidor tenga que acordarse de desenvolverlos.
   companies: () =>
     request<Company[] | Paginated<Company>>('/companies').then(comoLista),
   company: (id: string) => request<Company>(`/companies/${id}`),
@@ -267,13 +268,14 @@ export const api = {
     request<void>(`/companies/${id}/credentials`, { method: 'DELETE' }),
   testConnection: (id: string) =>
     request<TestConnectionResult>(`/companies/${id}/test-connection`, { method: 'POST' }),
-  puntosVenta: (id: string) => request<PuntoVenta[]>(`/companies/${id}/puntos-venta`),
+  puntosVenta: (id: string) =>
+    request<PuntoVenta[] | Paginated<PuntoVenta>>(`/companies/${id}/puntos-venta`).then(comoLista),
   nextNumber: (id: string, ptoVta: number, cbteTipo: number) =>
     request<NextNumber>(`/companies/${id}/next-number`, { query: { ptoVta, cbteTipo } }),
 
   /* clientes */
   customers: (query?: { search?: string; companyId?: string }) =>
-    request<Customer[] | Paginated<Customer>>('/customers', { query }),
+    request<Customer[] | Paginated<Customer>>('/customers', { query }).then(comoLista),
   customer: (id: string) => request<Customer>(`/customers/${id}`),
   createCustomer: (body: CustomerInput) =>
     request<Customer>('/customers', { method: 'POST', body }),
@@ -285,7 +287,7 @@ export const api = {
 
   /* productos */
   products: (query?: { companyId?: string; search?: string }, signal?: AbortSignal) =>
-    request<Product[] | Paginated<Product>>('/products', { query, signal }),
+    request<Product[] | Paginated<Product>>('/products', { query, signal }).then(comoLista),
   createProduct: (body: ProductInput) =>
     request<Product>('/products', { method: 'POST', body }),
   updateProduct: (id: string, body: Partial<ProductInput>) =>

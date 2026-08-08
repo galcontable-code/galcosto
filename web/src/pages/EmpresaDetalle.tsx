@@ -213,7 +213,14 @@ export function EmpresaDetallePage(): JSX.Element {
           <CardHeader titulo="Credenciales de ARCA"
             descripcion="El certificado y la clave privada con los que la app se autentica ante los web services." />
 
-          {company.hasCredentials ? (
+          {company.tieneCredenciales && company.certVencido ? (
+            <Alert tono="rojo" titulo="El certificado esta vencido" className="mb-4">
+              Vencio el {formatDate(company.certExpiresAt)}. ARCA va a rechazar la
+              autenticacion hasta que generes uno nuevo y lo cargues aca.
+            </Alert>
+          ) : null}
+
+          {company.tieneCredenciales ? (
             <Alert tono="verde" titulo="Certificado cargado" className="mb-4">
               <dl className="space-y-0.5 text-sm">
                 {company.certSubject ? <div><span className="font-medium">Titular:</span> {company.certSubject}</div> : null}

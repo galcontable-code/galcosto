@@ -30,7 +30,7 @@ export function ConfiguracionPage(): JSX.Element {
     api.arcaStatus('HOMO').then(setArca).catch(() => setArca(null));
   }, []);
 
-  const sinCertificado = companies.filter((c) => !c.hasCredentials);
+  const sinCertificado = companies.filter((c) => !c.tieneCredenciales);
 
   return (
     <div>
