@@ -3,7 +3,16 @@
  * Modulo compartido: no agregar dependencias hacia el resto del codigo.
  */
 
-import 'dotenv/config';
+import { config as cargarDotenv } from 'dotenv';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// El .env vive en la raiz del repo, no en server/. Se carga desde ahi para
+// que la app funcione igual la arranque quien la arranque y desde donde sea.
+const raizRepo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+cargarDotenv({ path: resolve(raizRepo, '.env') });
+// Un .env propio del workspace, si existe, tiene prioridad para overrides.
+cargarDotenv();
 
 function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;

@@ -63,6 +63,9 @@ simulados y los comprobantes **no tienen validez fiscal**.
 
 ## Conectar con ARCA de verdad
 
+> Guía completa paso a paso, con los trámites en ARCA y una tabla de errores
+> frecuentes: **[docs/PUESTA-EN-MARCHA.md](docs/PUESTA-EN-MARCHA.md)**.
+
 El modo demo alcanza para evaluar la app. Para emitir comprobantes reales:
 
 ### 1. Generar la clave privada y el pedido de certificado
