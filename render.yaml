@@ -1,0 +1,51 @@
+# Plano de despliegue para Render (https://render.com).
+#
+# En Render: New -> Blueprint -> elegir este repositorio. Lee este archivo,
+# crea la base y el servicio web, y genera solo las claves secretas.
+#
+# Repasa docs/DESPLIEGUE.md antes: una instalacion publicada va a guardar
+# certificados fiscales de tus clientes.
+
+databases:
+  - name: galcosto-db
+    databaseName: galcosto
+    user: galcosto
+    plan: free
+
+services:
+  - type: web
+    name: galcosto
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: galcosto-db
+          property: connectionString
+
+      # Se generan solos y no los ve nadie.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: REGISTRATION_KEY
+        generateValue: true
+
+      # Cifra los certificados de ARCA en la base.
+      # Render genera 32 caracteres y hacen falta 64 hexadecimales, asi que
+      # este hay que cargarlo a mano: en una terminal, `openssl rand -hex 32`,
+      # o desde https://www.random.org/bytes/ (32 bytes, formato hexadecimal).
+      # OJO: si lo cambias despues, los certificados ya cargados dejan de
+      # poder descifrarse y hay que volver a subirlos.
+      - key: APP_ENCRYPTION_KEY
+        sync: false
+
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+
+      # Arranca simulando ARCA. Cuando quieras facturar de verdad, ponelo en
+      # false desde el panel de Render y cargá los certificados.
+      - key: ARCA_DEMO_MODE
+        value: true

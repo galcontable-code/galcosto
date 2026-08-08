@@ -51,6 +51,17 @@ function caeDemo(semilla: number): string {
 }
 
 async function main(): Promise<void> {
+  // El seed crea un usuario con contrasena conocida. En una instalacion
+  // publicada eso es una puerta abierta, asi que hay que pedirlo a proposito.
+  if (process.env.NODE_ENV === 'production' && process.env.SEED_DEMO !== 'true') {
+    console.log(
+      'Seed omitido: NODE_ENV=production.\n' +
+        'Los datos de ejemplo incluyen un usuario con contrasena publica.\n' +
+        'Si igual los queres, corre con SEED_DEMO=true.',
+    );
+    return;
+  }
+
   console.log('Cargando datos de ejemplo...\n');
 
   // ---------------------------------------------------------------- estudio

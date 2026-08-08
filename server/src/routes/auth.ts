@@ -6,7 +6,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Studio, User } from '@prisma/client';
 
 import { prisma } from '../lib/prisma.js';
-import { conflict, unauthorized } from '../lib/errors.js';
+import { conflict, forbidden, unauthorized } from '../lib/errors.js';
 import { hashPassword, sesionDe, verifyPassword, type SesionUsuario } from '../lib/auth.js';
 import { loginSchema, parsear, registerSchema } from '../lib/validation.js';
 
@@ -57,10 +57,28 @@ function firmarToken(app: FastifyInstance, user: User): string {
 export async function rutasAuth(app: FastifyInstance): Promise<void> {
   /**
    * POST /api/auth/register
-   * Bootstrap: crea el estudio y su primer usuario ADMIN. Publico.
+   *
+   * Crea el estudio y su primer usuario ADMIN.
+   *
+   * Queda abierto solo mientras la instalacion esta vacia: una vez que existe
+   * un usuario, registrarse exige la clave de `REGISTRATION_KEY`. Sin esto,
+   * cualquiera que diera con la URL podria crearse un estudio en una app que
+   * guarda certificados fiscales de terceros.
    */
   app.post('/register', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = parsear(registerSchema, request.body);
+
+    const usuarios = await prisma.user.count();
+    if (usuarios > 0) {
+      const clave = process.env.REGISTRATION_KEY;
+      const entregada = (request.body as { registrationKey?: unknown } | null)?.registrationKey;
+      if (!clave || typeof entregada !== 'string' || entregada !== clave) {
+        throw forbidden(
+          'El registro esta cerrado en esta instalacion. Pedile a un administrador ' +
+            'que te cree el usuario.',
+        );
+      }
+    }
 
     const existente = await prisma.user.findUnique({ where: { email: body.email } });
     if (existente) {
